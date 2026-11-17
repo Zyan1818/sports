@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASTI SPORTS TRACKER</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root {
+  --bg:#0d0e13; --panel:#171922; --text:#f4f5f8;
+  --muted:#8d90a0; --red:#ff4d5e; --red2:#ff7a59; --line:#262936;
+  --shadow:0 10px 30px rgba(0,0,0,.35);
+}
+body.light {
+  --bg:#f4f5f9; --panel:#ffffff; --text:#171820;
+  --muted:#7b7e8d; --line:#e6e8ef;
+  --shadow:0 10px 30px rgba(30,32,60,.08);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+font-family:"Inter","Segoe UI",system-ui,-apple-system,Helvetica,Arial,sans-serif;
+line-height:1.5;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit}
+button{cursor:pointer;border:0;border-radius:12px;padding:12px 18px;
+background:linear-gradient(135deg,var(--red),var(--red2));color:white;font-weight:600;
+letter-spacing:.3px;transition:transform .15s,box-shadow .15s,opacity .15s;
+box-shadow:0 6px 16px rgba(255,77,94,.25)}
+button:hover{transform:translateY(-1px);opacity:.95}
+button:active{transform:translateY(0)}
+button.secondary{background:transparent;color:var(--text);
+border:1px solid var(--line);box-shadow:none}
+button.secondary:hover{border-color:var(--red);color:var(--red)}
+label{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600}
+input,select{width:100%;padding:13px 14px;margin:7px 0 14px;
+border-radius:12px;border:1px solid var(--line);
+background:var(--bg);color:var(--text);outline:none;transition:border-color .15s,box-shadow .15s}
+input:focus,select:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,77,94,.15)}
+h1,h2,h3{margin-top:0;letter-spacing:-.3px}
+h2{font-size:26px;font-weight:800}
+h3{font-size:16px;font-weight:700}
+small,.muted{color:var(--muted)}
+header{background:rgba(23,25,34,.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+padding:14px 5%;display:flex;justify-content:space-between;align-items:center;
+border-bottom:1px solid var(--line);position:relative;z-index:1001}
+body.light header{background:rgba(255,255,255,.85)}
+.headLeft{display:flex;align-items:center;gap:14px}
+.burger{padding:8px 13px;font-size:18px;line-height:1}
+.brand{font-size:17px;font-weight:800;letter-spacing:3px}
+.brand span{color:var(--red);font-weight:300}
+.container{max-width:1100px;margin:auto;padding:24px}
+.panel,.stat{background:var(--panel);border:1px solid var(--line);
+border-radius:20px;padding:20px;margin-bottom:16px;box-shadow:var(--shadow)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:4px}
+.stat{font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);font-weight:600;margin-bottom:12px}
+.stat strong{display:block;font-size:26px;letter-spacing:-.5px;text-transform:none;
+color:var(--text);margin-top:8px;font-weight:800}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.actions button{flex:1;min-width:100px}
+.slider{position:relative;height:54px;border-radius:30px;background:var(--bg);border:1px solid var(--line);overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:none;margin-top:8px}
+.slider .label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);pointer-events:none;padding-left:40px}
+.slider .knob{position:absolute;left:3px;top:3px;width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,var(--red),var(--red2));color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;cursor:grab;box-shadow:0 4px 12px rgba(255,77,94,.35)}
+.slider.dragging .knob{transition:none}
+.slider .knob{transition:left .2s}
+#controlsLive{margin-top:4px;display:none!important}
+.floatControls{display:none}
+#liveWrap.floating .floatControls{display:flex;gap:8px;padding:12px;background:var(--panel);position:absolute;left:0;right:0;bottom:0;z-index:600}
+#liveWrap.floating .floatControls button{flex:1;padding:16px 12px;font-size:16px}
+.live{position:relative;border-radius:22px;overflow:hidden;margin-top:12px;border:1px solid var(--line);box-shadow:var(--shadow)}
+#map{height:480px;border-radius:0;z-index:1;margin:0}
+#liveWrap.floating{position:fixed;top:0;left:0;right:0;bottom:0;width:100%;max-width:none;height:100%;z-index:2000;background:var(--bg)}
+#liveWrap.floating .live{margin-top:0;border-radius:0;border:0;box-shadow:none;width:100%;height:100%}
+#liveWrap.floating #map{height:100%;width:100%}
+#liveWrap.floating>p{display:none}
+#liveWrap.floating .liveOverlay{left:12px;right:12px;top:12px;padding:12px}
+body.workoutLive{overflow:hidden}
+body.workoutLive header,
+body.workoutLive .menu,
+body.workoutLive .overlay,
+body.workoutLive .container>.panel,
+body.workoutLive #workout>h2,
+body.workoutLive #workout>.panel>:not(#liveWrap){display:none!important}
+body.workoutLive section{animation:none}
+body.workoutLive #workout>.panel{padding:0;margin:0;border:0;background:none;box-shadow:none}
+body.workoutLive .container{padding:0;max-width:none}
+.liveOverlay{position:absolute;left:12px;right:12px;top:12px;z-index:500;
+background:rgba(13,14,19,.7);backdrop-filter:blur(10px);
+-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.08);
+border-radius:20px;padding:12px;color:#fff}
+.liveOverlay .timer{font-size:40px;padding:4px;color:#fff;letter-spacing:2px;font-variant-numeric:tabular-nums}
+.liveOverlay .stats{gap:6px;margin:0}
+.liveOverlay .stat{background:transparent;border:0;border-radius:0;box-shadow:none;
+padding:6px 4px;margin:0;text-align:center;color:#b9bccb;font-size:10px}
+.liveOverlay .stat strong{font-size:18px;color:#fff;margin-top:4px}
+.menu{position:fixed;top:0;left:0;height:100%;width:260px;background:var(--panel);
+border-right:1px solid var(--line);padding:84px 16px 16px;transform:translateX(-100%);
+transition:transform .25s;z-index:1000;display:flex;flex-direction:column;gap:6px;box-shadow:var(--shadow)}
+.menu.open{transform:none}
+.menu button{background:transparent;border:0;box-shadow:none;color:var(--muted);text-align:left;font-weight:600}
+.menu button:hover{background:var(--bg);color:var(--text);transform:none}
+.menu button.active{background:linear-gradient(135deg,var(--red),var(--red2));color:#fff}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(2px);z-index:999;display:none}
+.overlay.show{display:block}
+.timer{font-size:44px;font-weight:800;text-align:center;
+padding:15px;color:var(--red)}
+.progress{height:10px;background:var(--line);border-radius:20px;overflow:hidden}
+.progress div{height:100%;background:linear-gradient(90deg,var(--red),var(--red2));width:0%;border-radius:20px;transition:width .4s}
+table{width:100%;border-collapse:collapse}
+th{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+td,th{padding:12px 10px;border-bottom:1px solid var(--line);text-align:left}
+.hidden{display:none!important}
+section{animation:tabIn .35s ease both}
+@keyframes tabIn{
+ from{opacity:0;transform:translateY(14px)}
+ to{opacity:1;transform:none}
+}
+@media(prefers-reduced-motion:reduce){
+ section{animation:none}
+}
+@media(max-width:700px){
+ .stats{grid-template-columns:1fr 1fr}
+ .liveOverlay .stats{grid-template-columns:repeat(4,1fr)}
+ .liveOverlay .stat{font-size:9px;padding:4px 2px}
+ .liveOverlay .stat strong{font-size:15px}
+ .liveOverlay .timer{font-size:32px}
+ #map{height:440px}
+ .grid{grid-template-columns:1fr}
+ header{padding:14px}
+ .container{padding:14px}
+ h2{font-size:22px}
+ body.workoutLive .container{padding:0}
+}
+</style>
+</head>
+<body>
+
+<header>
+ <div class="headLeft">
+  <button class="burger" onclick="toggleMenu()" aria-label="Menu">&#9776;</button>
+  <div class="brand">ASTI <span>SPORTS TRACKER</span></div>
+ </div>
+ <button class="secondary" onclick="toggleTheme()">Light / Dark</button>
+</header>
+
+<div class="overlay" id="overlay" onclick="toggleMenu()"></div>
+<nav class="menu" id="menu">
+ <button onclick="page('dashboard',this)">Dashboard</button>
+ <button class="active" onclick="page('workout',this)">Workout</button>
+ <button onclick="page('food',this)">Food</button>
+ <button onclick="page('health',this)">Health</button>
+ <button onclick="page('history',this)">History</button>
+ <button onclick="page('reports',this)">Reports</button>
+ <button onclick="page('profile',this)">Profile</button>
+ <button onclick="page('about',this)">About Us</button>
+</nav>
+
+<div id="app">
+ <div class="container">
+  <div class="panel">
+   <h2>Welcome, <span id="userName">Athlete</span></h2>
+   <small id="userEmail"></small>
+  </div>
+
+  <section id="dashboard" class="hidden">
+   <h2>My Dashboard</h2>
+   <div class="stats">
+    <div class="stat">Workouts<strong id="totalWorkouts">0</strong></div>
+    <div class="stat">Distance<strong id="totalDistance">0 km</strong></div>
+    <div class="stat">Calories<strong id="totalCalories">0</strong></div>
+    <div class="stat">Time<strong id="totalTime">0 min</strong></div>
+   </div>
+   <div class="stats">
+    <div class="stat">Eaten Today<strong id="dashEaten">0</strong></div>
+    <div class="stat">Burned Today<strong id="dashBurned">0</strong></div>
+    <div class="stat">Net Today<strong id="dashNet">0</strong></div>
+   </div>
+   <div class="panel">
+    <h3>Weekly Activity</h3>
+    <canvas id="weeklyChart"></canvas>
+   </div>
+   <div class="panel">
+    <h3>Distance Goal</h3>
+    <input id="goalInput" type="number" min="1" placeholder="Weekly goal in km">
+    <button onclick="saveGoal()">Save Goal</button>
+    <p id="goalText">0 / 20 km</p>
+    <div class="progress"><div id="goalBar"></div></div>
+   </div>
+  </section>
+
+  <section id="workout">
+   <h2>Workout Tracker</h2>
+   <div class="panel">
+    <label>Select Sport</label>
+    <select id="sport" onchange="sportChanged()">
+     <option>Running</option><option>Walking</option>
+     <option>Cycling</option><option>Hiking</option>
+     <option>Basketball</option><option>Football</option>
+     <option>Badminton</option><option>Volleyball</option>
+     <option>Swimming</option><option>Gym</option>
+     <option>Yoga</option><option>Other</option>
+    </select>
+    <label>Weight (kg) – for calorie estimate</label>
+    <input id="weight" type="number" value="60" min="1">
+    <div id="manualWrap" class="hidden">
+     <label>Manual Distance (km) – for indoor activities</label>
+     <input id="manualDistance" type="number" value="0" min="0" step="0.01">
+    </div>
+    <div class="actions" id="controlsIdle">
+     <button onclick="startWorkout()">START</button>
+    </div>
+    <div id="controlsLive" class="hidden">
+     <div class="slider" id="pauseSlider" data-action="toggle">
+      <div class="label" id="pauseLabel">Slide to pause</div>
+      <div class="knob" id="pauseKnob">&#10074;&#10074;</div>
+     </div>
+     <div class="slider" id="finishSlider" data-action="finish">
+      <div class="label">Slide to finish</div>
+      <div class="knob">&#9873;</div>
+     </div>
+    </div>
+    <p id="gpsStatus" class="muted">GPS is waiting.</p>
+    <div id="liveWrap" class="hidden">
+     <div class="live">
+      <div id="map"></div>
+      <div class="liveOverlay">
+       <div class="timer" id="timer">00:00:00</div>
+       <div class="stats">
+        <div class="stat">Distance<strong id="distance">0 m</strong></div>
+        <div class="stat">Speed<strong id="speed">0 km/h</strong></div>
+        <div class="stat">Pace<strong id="pace">—</strong></div>
+        <div class="stat">Calories<strong id="calories">0</strong></div>
+       </div>
+      </div>
+      <div class="floatControls">
+       <button id="floatPause" onclick="togglePause()">&#10074;&#10074; Pause</button>
+       <button class="secondary" onclick="finishWorkout()">&#9873; Finish</button>
+      </div>
+     </div>
+     <p class="muted">GPS tracking requires location permission and an HTTPS connection.</p>
+    </div>
+   </div>
+  </section>
+
+  <section id="food" class="hidden">
+   <h2>Food Calorie Tracker</h2>
+   <div class="stats">
+    <div class="stat">Eaten Today<strong id="foodEaten">0</strong></div>
+    <div class="stat">Daily Goal<strong id="foodGoalShow">2000</strong></div>
+    <div class="stat">Remaining<strong id="foodRemaining">2000</strong></div>
+    <div class="stat">Burned Today<strong id="foodBurned">0</strong></div>
+   </div>
+   <div class="panel">
+    <h3>Daily Calorie Goal</h3>
+    <input id="foodGoalInput" type="number" min="1" placeholder="Daily calories">
+    <button onclick="saveFoodGoal()">Save Goal</button>
+    <p id="foodGoalText">0 / 2000 kcal</p>
+    <div class="progress"><div id="foodBar"></div></div>
+   </div>
+   <div class="panel">
+    <h3>Add Food</h3>
+    <label>Food Name</label>
+    <input id="foodName" placeholder="e.g. Chicken rice">
+    <label>Meal</label>
+    <select id="foodMeal">
+     <option>Breakfast</option><option>Lunch</option>
+     <option>Dinner</option><option>Snack</option>
+    </select>
+    <label>Calories (kcal)</label>
+    <input id="foodCal" type="number" min="1" placeholder="Calories">
+    <button onclick="addFood()">Add Food</button>
+   </div>
+   <div class="panel" style="overflow-x:auto">
+    <h3>Today's Meals</h3>
+    <table>
+     <thead><tr><th>Meal</th><th>Food</th><th>Calories</th><th>Action</th></tr></thead>
+     <tbody id="foodRows"></tbody>
+    </table>
+   </div>
+  </section>
+
+  <section id="health" class="hidden">
+   <h2>Health Tracker</h2>
+   <div class="stats">
+    <div class="stat">Water Today<strong id="hWater">0 / 8</strong></div>
+    <div class="stat">Sleep Today<strong id="hSleep">0 h</strong></div>
+    <div class="stat">Steps Today<strong id="hSteps">0</strong></div>
+    <div class="stat">BMI<strong id="hBmi">—</strong></div>
+   </div>
+   <div class="panel">
+    <h3>Water Intake (glasses)</h3>
+    <div class="progress"><div id="waterBar"></div></div>
+    <p></p>
+    <div class="actions">
+     <button onclick="addWater(1)">Add Glass</button>
+     <button class="secondary" onclick="addWater(-1)">Remove Glass</button>
+    </div>
+   </div>
+   <div class="panel">
+    <h3>Log Today's Health</h3>
+    <label>Sleep (hours)</label>
+    <input id="hSleepInput" type="number" min="0" max="24" step="0.5" placeholder="e.g. 8">
+    <label>Steps</label>
+    <input id="hStepsInput" type="number" min="0" placeholder="e.g. 6000">
+    <label>Body Weight (kg)</label>
+    <input id="hWeightInput" type="number" min="1" step="0.1" placeholder="e.g. 60">
+    <label>Height (cm) – for BMI</label>
+    <input id="hHeightInput" type="number" min="1" placeholder="e.g. 165">
+    <label>Mood</label>
+    <select id="hMoodInput">
+     <option>Great</option><option>Good</option>
+     <option>Okay</option><option>Low</option><option>Tired</option>
+    </select>
+    <button onclick="saveHealth()">Save Health Log</button>
+    <p id="hBmiText" class="muted"></p>
+   </div>
+   <div class="panel" style="overflow-x:auto">
+    <h3>Recent Health Logs</h3>
+    <table>
+     <thead><tr><th>Date</th><th>Water</th><th>Sleep</th><th>Steps</th><th>Weight</th><th>Mood</th></tr></thead>
+     <tbody id="healthRows"></tbody>
+    </table>
+   </div>
+  </section>
+
+  <section id="history" class="hidden">
+   <h2>Workout History</h2>
+   <input id="historySearch" placeholder="Search sport..." oninput="renderHistory()">
+   <div class="panel" style="overflow-x:auto">
+    <table>
+     <thead><tr><th>Sport</th><th>Distance</th><th>Time</th><th>Calories</th><th>Action</th></tr></thead>
+     <tbody id="historyRows"></tbody>
+    </table>
+   </div>
+   <div class="actions">
+    <button onclick="exportCSV()">Export CSV</button>
+    <button class="secondary" onclick="backup()">Backup JSON</button>
+    <button class="secondary" onclick="document.getElementById('restoreFile').click()">Restore JSON</button>
+    <input id="restoreFile" type="file" accept=".json" class="hidden" onchange="restoreBackup(event)">
+   </div>
+  </section>
+
+  <section id="reports" class="hidden">
+   <h2>My Progress</h2>
+   <div class="panel">
+    <h3>Personal Records</h3>
+    <p>Longest distance: <strong id="recordDistance">0 km</strong></p>
+    <p>Longest workout: <strong id="recordTime">0 min</strong></p>
+    <p>Total sessions: <strong id="recordSessions">0</strong></p>
+   </div>
+   <div class="panel">
+    <h3>All-Time Distance</h3>
+    <canvas id="sportChart"></canvas>
+   </div>
+  </section>
+
+  <section id="profile" class="hidden">
+   <h2>My Profile</h2>
+   <div class="panel">
+    <label>Full Name</label>
+    <input id="profileName">
+    <label>Username</label>
+    <input id="profileUsername">
+    <label>Weight (kg)</label>
+    <input id="profileWeight" type="number" min="1">
+    <button onclick="saveProfile()">Save Profile</button>
+   </div>
+  </section>
+
+  <section id="about" class="hidden">
+   <h2>About Us</h2>
+   <div class="panel">
+    <h3>Developers</h3>
+    <p>Adrian Nicolas</p>
+    <p>Neil Arlegui</p>
+    <p>Zyan Balila</p>
+   </div>
+  </section>
+ </div>
+</div>
+
+<script>
+const KEY="asti_accounts_v3";
+const DEFAULT_USER="athlete";
+const GPS_SPORTS=["Running","Walking","Cycling","Hiking"];
+let current=DEFAULT_USER, timerInterval=null, seconds=0, running=false;
+let workoutStart=0, pausedAt=0, watchId=null;
+let route=[], map=null, routeLine=null, marker=null;
+let chart1=null, chart2=null;
+
+function accounts(){return JSON.parse(localStorage.getItem(KEY)||"{}")}
+function saveAccounts(a){localStorage.setItem(KEY,JSON.stringify(a))}
+function user(){return accounts()[current]}
+function updateUser(fn){
+ let a=accounts();fn(a[current]);saveAccounts(a)
+}
+function ensureUser(){
+ let a=accounts();
+ if(!a[current]){
+  a[current]={name:"Athlete",username:"athlete",email:"",weight:60,goal:20,workouts:[]};
+ }
+ if(!a[current].foods)a[current].foods=[];
+ if(!a[current].foodGoal)a[current].foodGoal=2000;
+ if(!a[current].health)a[current].health=[];
+ saveAccounts(a);
+}
+function toggleMenu(){
+ document.getElementById("menu").classList.toggle("open");
+ document.getElementById("overlay").classList.toggle("show");
+}
+function openApp(){
+ ensureUser();
+ let u=user();
+ userName.textContent=u.name;userEmail.textContent="@"+u.username;
+ profileName.value=u.name;profileUsername.value=u.username;
+ profileWeight.value=u.weight;goalInput.value=u.goal;
+ renderAll();
+}
+function page(id,btn){
+ ["dashboard","workout","food","health","history","reports","profile","about"].forEach(x=>document.getElementById(x).classList.toggle("hidden",x!==id));
+ document.querySelectorAll(".menu button").forEach(x=>x.classList.remove("active"));
+ btn.classList.add("active");
+ document.getElementById("menu").classList.remove("open");
+ document.getElementById("overlay").classList.remove("show");
+ if(id==="workout"&&seconds>0)setTimeout(initMap,100);
+ if(id==="reports")renderCharts();
+}
+function toggleTheme(){document.body.classList.toggle("light")}
+function sportChanged(){
+ manualWrap.classList.toggle("hidden",GPS_SPORTS.includes(sport.value));
+ if(running&&GPS_SPORTS.includes(sport.value))startGPS();
+ if(running&&!GPS_SPORTS.includes(sport.value))stopGPS();
+ updateMetrics();
+}
+function formatDistance(d){
+ return d<1?Math.round(d*1000)+" m":d.toFixed(2)+" km";
+}
+function formatTime(s){
+ let h=Math.floor(s/3600),m=Math.floor(s%3600/60),sec=s%60;
+ return [h,m,sec].map(x=>String(x).padStart(2,"0")).join(":");
+}
+function initMap(){
+ if(map){map.invalidateSize();return}
+ map=L.map("map").setView([12.0,121.0],6);
+ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"© OpenStreetMap"}).addTo(map);
+ routeLine=L.polyline([],{color:"#ff4d5e",weight:5}).addTo(map);
+}
+function setControls(){
+ const active=seconds>0||running;
+ controlsIdle.classList.toggle("hidden",active);
+ controlsLive.classList.toggle("hidden",!active);
+ pauseLabel.textContent=running?"Slide to pause":"Slide to resume";
+ pauseKnob.innerHTML=running?"&#10074;&#10074;":"&#9654;";
+ floatPause.innerHTML=running?"&#10074;&#10074; Pause":"&#9654; Resume";
+}
+function startWorkout(){
+ if(running)return;
+ liveWrap.classList.remove("hidden");
+ liveWrap.classList.add("floating");
+ document.body.classList.add("workoutLive");
+ if(seconds===0){
+  seconds=0;route=[];manualDistance.value=manualDistance.value||0;
+  workoutStart=Date.now();
+  timer.textContent=formatTime(0);
+  initMap();
+  routeLine.setLatLngs([]);
+  if(marker){map.removeLayer(marker);marker=null}
+ }
+ setTimeout(()=>{initMap();map.invalidateSize()},100);
+ running=true;pausedAt=Date.now();
+ clearInterval(timerInterval);
+ timerInterval=setInterval(()=>{
+  seconds++;
+  timer.textContent=formatTime(seconds);
+  updateMetrics();
+ },1000);
+ if(GPS_SPORTS.includes(sport.value))startGPS();
+ gpsStatus.textContent=GPS_SPORTS.includes(sport.value)?"Workout in progress. Waiting for GPS...":"Workout in progress.";
+ updateMetrics();
+ setControls();
+}
+function pauseWorkout(){
+ if(!running)return;
+ running=false;clearInterval(timerInterval);stopGPS();
+ gpsStatus.textContent="Workout paused.";
+ setControls();
+}
+function resumeWorkout(){
+ if(running||seconds===0)return startWorkout();
+ startWorkout();
+}
+function togglePause(){
+ if(running)pauseWorkout();else resumeWorkout();
+}
+function initSlider(el,onDone){
+ const knob=el.querySelector(".knob");
+ let startX=0,dragging=false,max=0;
+ const down=e=>{
+  dragging=true;el.classList.add("dragging");
+  startX=(e.touches?e.touches[0].clientX:e.clientX);
+  max=el.clientWidth-knob.offsetWidth-6;
+  e.preventDefault();
+ };
+ const move=e=>{
+  if(!dragging)return;
+  const x=(e.touches?e.touches[0].clientX:e.clientX)-startX;
+  knob.style.left=(3+Math.max(0,Math.min(max,x)))+"px";
+ };
+ const up=()=>{
+  if(!dragging)return;
+  dragging=false;el.classList.remove("dragging");
+  const pos=parseFloat(knob.style.left)-3||0;
+  knob.style.left="3px";
+  if(pos>=max*0.85)onDone();
+ };
+ knob.addEventListener("mousedown",down);
+ knob.addEventListener("touchstart",down,{passive:false});
+ window.addEventListener("mousemove",move);
+ window.addEventListener("touchmove",move,{passive:false});
+ window.addEventListener("mouseup",up);
+ window.addEventListener("touchend",up);
+}
+function startGPS(){
+ if(!navigator.geolocation){gpsStatus.textContent="GPS is not supported.";return}
+ if(watchId!==null)return;
+ watchId=navigator.geolocation.watchPosition(pos=>{
+  const lat=pos.coords.latitude,lon=pos.coords.longitude;
+  const point=[lat,lon];
+  initMap();
+  if(route.length){
+   const last=route[route.length-1];
+   const d=distanceBetween(last[0],last[1],lat,lon);
+   if(d<0.003||d>0.5){
+    map.setView(point,16);
+    return;
+   }
+  }
+  route.push(point);
+  routeLine.addLatLng(point);map.setView(point,16);
+  if(!marker)marker=L.marker(point).addTo(map);
+  else marker.setLatLng(point);
+  gpsStatus.textContent="GPS accuracy: "+Math.round(pos.coords.accuracy)+" m";
+  updateMetrics();
+ },err=>{gpsStatus.textContent="GPS error: "+err.message;},{enableHighAccuracy:true,maximumAge:1000});
+}
+function stopGPS(){
+ if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null}
+}
+function distanceBetween(a,b,c,d){
+ const R=6371,rad=x=>x*Math.PI/180;
+ let x=rad(c-a),y=rad(d-b);
+ let q=Math.sin(x/2)**2+Math.cos(rad(a))*Math.cos(rad(c))*Math.sin(y/2)**2;
+ return 2*R*Math.asin(Math.sqrt(q));
+}
+function gpsDistance(){
+ let d=0;for(let i=1;i<route.length;i++)
+ d+=distanceBetween(...route[i-1],...route[i]);return d;
+}
+function getDistance(){
+ if(GPS_SPORTS.includes(sport.value))return gpsDistance();
+ return Math.max(0,Number(manualDistance.value)||0);
+}
+function updateMetrics(){
+ const d=getDistance(),hours=seconds/3600;
+ distance.textContent=formatDistance(d);
+ speed.textContent=hours?(d/hours).toFixed(1)+" km/h":"0 km/h";
+ pace.textContent=d>0?(seconds/60/d).toFixed(1)+" min/km":"—";
+ const weight=Number(document.getElementById("weight").value)||60;
+ const factor={Running:9,Walking:3.5,Cycling:7,Hiking:6,Basketball:8,Football:8,Badminton:5,Volleyball:4,Swimming:7,Gym:5,Yoga:3,Other:4}[sport.value]||4;
+ calories.textContent=Math.round(factor*weight*seconds/3600);
+}
+function finishWorkout(){
+ if(seconds===0)return alert("Start a workout first.");
+ pauseWorkout();
+ const d=getDistance(),cal=Number(calories.textContent)||0;
+ const record={sport:sport.value,distance:Number(d.toFixed(3)),seconds,calories:cal,date:new Date().toISOString(),route};
+ updateUser(u=>u.workouts.push(record));
+ seconds=0;timer.textContent="00:00:00";manualDistance.value=0;
+ route=[];updateMetrics();renderAll();
+ liveWrap.classList.add("hidden");
+ liveWrap.classList.remove("floating");
+ document.body.classList.remove("workoutLive");
+ gpsStatus.textContent="GPS is waiting.";
+ setControls();
+ alert("Workout saved successfully!");
+}
+function isToday(iso){
+ return new Date(iso).toDateString()===new Date().toDateString();
+}
+function renderFood(){
+ let u=user(),foods=(u.foods||[]).filter(f=>isToday(f.date));
+ let goal=u.foodGoal||2000;
+ let eaten=foods.reduce((s,f)=>s+f.calories,0);
+ let burned=(u.workouts||[]).filter(x=>isToday(x.date)).reduce((s,x)=>s+x.calories,0);
+ foodEaten.textContent=eaten;
+ foodGoalShow.textContent=goal;
+ foodRemaining.textContent=goal-eaten;
+ foodBurned.textContent=burned;
+ foodGoalInput.value=goal;
+ foodGoalText.textContent=eaten+" / "+goal+" kcal";
+ foodBar.style.width=Math.min(100,eaten/goal*100)+"%";
+ dashEaten.textContent=eaten;
+ dashBurned.textContent=burned;
+ dashNet.textContent=eaten-burned;
+ foodRows.innerHTML="";
+ let all=u.foods||[];
+ all.forEach((f,idx)=>{
+  if(!isToday(f.date))return;
+  let tr=document.createElement("tr");
+  [f.meal,f.name,f.calories+" kcal"].forEach(v=>{
+   let td=document.createElement("td");td.textContent=v;tr.appendChild(td);
+  });
+  let td=document.createElement("td"),b=document.createElement("button");
+  b.textContent="Delete";b.className="secondary";
+  b.onclick=()=>{updateUser(x=>x.foods.splice(idx,1));renderAll()};
+  td.appendChild(b);tr.appendChild(td);foodRows.appendChild(tr);
+ });
+}
+function addFood(){
+ let name=foodName.value.trim(),cal=Number(foodCal.value);
+ if(!name)return alert("Enter a food name.");
+ if(!(cal>0))return alert("Enter valid calories.");
+ updateUser(u=>{
+  if(!u.foods)u.foods=[];
+  u.foods.push({name,meal:foodMeal.value,calories:Math.round(cal),date:new Date().toISOString()});
+ });
+ foodName.value="";foodCal.value="";
+ renderAll();
+}
+function saveFoodGoal(){
+ let v=Number(foodGoalInput.value);
+ if(!(v>0))return alert("Enter a valid goal.");
+ updateUser(u=>u.foodGoal=Math.round(v));renderAll();
+}
+const WATER_GOAL=8;
+function todayKey(){
+ let d=new Date();
+ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+function healthEntry(u){
+ if(!u.health)u.health=[];
+ let k=todayKey(),e=u.health.find(x=>x.day===k);
+ if(!e){e={day:k,water:0,sleep:0,steps:0,weight:0,mood:""};u.health.push(e)}
+ return e;
+}
+function addWater(n){
+ updateUser(u=>{
+  let e=healthEntry(u);
+  e.water=Math.max(0,(e.water||0)+n);
+ });
+ renderHealth();
+}
+function saveHealth(){
+ let sleep=Number(hSleepInput.value),steps=Number(hStepsInput.value);
+ let weight=Number(hWeightInput.value),height=Number(hHeightInput.value);
+ if(hSleepInput.value!==""&&(sleep<0||sleep>24))return alert("Enter valid sleep hours.");
+ if(hStepsInput.value!==""&&steps<0)return alert("Enter valid steps.");
+ updateUser(u=>{
+  let e=healthEntry(u);
+  if(hSleepInput.value!=="")e.sleep=sleep;
+  if(hStepsInput.value!=="")e.steps=Math.round(steps);
+  if(weight>0)e.weight=weight;
+  if(height>0)u.height=height;
+  e.mood=hMoodInput.value;
+ });
+ renderHealth();
+ alert("Health log saved.");
+}
+function renderHealth(){
+ let u=user(),list=u.health||[];
+ let e=list.find(x=>x.day===todayKey())||{water:0,sleep:0,steps:0,weight:0,mood:""};
+ hWater.textContent=e.water+" / "+WATER_GOAL;
+ hSleep.textContent=e.sleep+" h";
+ hSteps.textContent=e.steps;
+ waterBar.style.width=Math.min(100,e.water/WATER_GOAL*100)+"%";
+ if(document.activeElement!==hSleepInput&&e.sleep)hSleepInput.value=e.sleep;
+ if(document.activeElement!==hStepsInput&&e.steps)hStepsInput.value=e.steps;
+ if(e.mood&&[...hMoodInput.options].some(o=>o.value===e.mood))hMoodInput.value=e.mood;
+ let lastWeight=e.weight||[...list].reverse().map(x=>x.weight).find(w=>w>0)||u.weight;
+ if(u.height)hHeightInput.value=u.height;
+ if(e.weight)hWeightInput.value=e.weight;
+ if(u.height>0&&lastWeight>0){
+  let m=u.height/100,bmi=lastWeight/(m*m);
+  let cat=bmi<18.5?"Underweight":bmi<25?"Normal":bmi<30?"Overweight":"Obese";
+  hBmi.textContent=bmi.toFixed(1);
+  hBmiText.textContent="BMI category: "+cat;
+ }else{
+  hBmi.textContent="—";
+  hBmiText.textContent="Enter your height to calculate BMI.";
+ }
+ healthRows.innerHTML="";
+ list.slice(-7).reverse().forEach(x=>{
+  let tr=document.createElement("tr");
+  [x.day,x.water+" gl",x.sleep+" h",x.steps,x.weight?x.weight+" kg":"—",x.mood||"—"].forEach(v=>{
+   let td=document.createElement("td");td.textContent=v;tr.appendChild(td);
+  });
+  healthRows.appendChild(tr);
+ });
+}
+function renderAll(){
+ let u=user(),w=u.workouts||[];
+ totalWorkouts.textContent=w.length;
+ totalDistance.textContent=w.reduce((s,x)=>s+x.distance,0).toFixed(2)+" km";
+ totalCalories.textContent=w.reduce((s,x)=>s+x.calories,0);
+ totalTime.textContent=Math.round(w.reduce((s,x)=>s+x.seconds,0)/60)+" min";
+ goalInput.value=u.goal||20;
+ let week=w.filter(x=>Date.now()-new Date(x.date).getTime()<7*86400000);
+ let wd=week.reduce((s,x)=>s+x.distance,0);
+ goalText.textContent=wd.toFixed(2)+" / "+u.goal+" km";
+ goalBar.style.width=Math.min(100,wd/(u.goal||20)*100)+"%";
+ recordDistance.textContent=Math.max(0,...w.map(x=>x.distance)).toFixed(2)+" km";
+ recordTime.textContent=Math.round(Math.max(0,...w.map(x=>x.seconds))/60)+" min";
+ recordSessions.textContent=w.length;
+ renderHistory();renderCharts();renderFood();renderHealth();
+}
+function saveGoal(){
+ let v=Number(goalInput.value);
+ if(v<=0)return alert("Enter a valid goal.");
+ updateUser(u=>u.goal=v);renderAll();
+}
+function renderHistory(){
+ let q=historySearch.value.toLowerCase();
+ let w=user().workouts||[];
+ historyRows.innerHTML="";
+ w.slice().reverse().forEach((x,i)=>{
+  if(!x.sport.toLowerCase().includes(q))return;
+  let original=w.length-1-i;
+  let tr=document.createElement("tr");
+  [x.sport,formatDistance(x.distance),Math.round(x.seconds/60)+" min",x.calories].forEach(v=>{
+   let td=document.createElement("td");td.textContent=v;tr.appendChild(td);
+  });
+  let td=document.createElement("td"),b=document.createElement("button");
+  b.textContent="Delete";b.className="secondary";
+  b.onclick=()=>{if(confirm("Delete this workout?")){updateUser(u=>u.workouts.splice(original,1));renderAll()}};
+  td.appendChild(b);tr.appendChild(td);historyRows.appendChild(tr);
+ });
+}
+function renderCharts(){
+ let w=user().workouts||[];
+ let labels=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+ let values=labels.map((_,day)=>w.filter(x=>new Date(x.date).getDay()===day&&Date.now()-new Date(x.date).getTime()<7*86400000).reduce((s,x)=>s+x.distance,0));
+ if(chart1)chart1.destroy();
+ chart1=new Chart(document.getElementById("weeklyChart"),{
+  type:"bar",data:{labels,datasets:[{label:"Distance (km)",data:values,backgroundColor:"#ff4d5e",borderRadius:8}]},
+  options:{responsive:true,plugins:{legend:{labels:{color:getComputedStyle(document.body).getPropertyValue("--text")}}}}
+ });
+ let sports=[...new Set(w.map(x=>x.sport))];
+ if(chart2)chart2.destroy();
+ chart2=new Chart(document.getElementById("sportChart"),{
+  type:"doughnut",data:{labels:sports,datasets:[{data:sports.map(s=>w.filter(x=>x.sport===s).reduce((a,x)=>a+x.distance,0)),backgroundColor:["#ff4d5e","#ff7a59","#ffb86b","#7c83fd","#4cc9f0","#5eead4","#a78bfa","#f472b6"],borderWidth:0}]},
+  options:{responsive:true}
+ });
+}
+function exportCSV(){
+ let rows=[["Sport","Distance km","Seconds","Calories","Date"],...(user().workouts||[]).map(x=>[x.sport,x.distance,x.seconds,x.calories,x.date])];
+ let csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\n");
+ download(csv,"asti-workouts.csv","text/csv");
+}
+function backup(){download(JSON.stringify(user(),null,2),"asti-backup.json","application/json")}
+function download(content,name,type){
+ let a=document.createElement("a"),url=URL.createObjectURL(new Blob([content],{type}));
+ a.href=url;a.download=name;a.click();URL.revokeObjectURL(url);
+}
+function restoreBackup(e){
+ let file=e.target.files[0];if(!file)return;
+ let reader=new FileReader();
+ reader.onload=()=>{
+  try{
+   let data=JSON.parse(reader.result);
+   if(!Array.isArray(data.workouts))throw Error();
+   updateUser(u=>{u.workouts=data.workouts;u.goal=data.goal||u.goal;if(Array.isArray(data.foods))u.foods=data.foods;if(data.foodGoal)u.foodGoal=data.foodGoal;if(Array.isArray(data.health))u.health=data.health;if(data.height)u.height=data.height});
+   renderAll();alert("Backup restored.");
+  }catch(err){alert("Invalid backup file.")}
+ };
+ reader.readAsText(file);
+}
+function saveProfile(){
+ updateUser(u=>{
+  u.name=profileName.value.trim()||u.name;
+  u.username=profileUsername.value.trim()||u.username;
+  u.weight=Number(profileWeight.value)||u.weight;
+ });
+ openApp();alert("Profile updated.");
+}
+initSlider(pauseSlider,togglePause);
+initSlider(finishSlider,finishWorkout);
+openApp();
+sportChanged();
+</script>
+</body>
+</html>
